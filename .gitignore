@@ -1,0 +1,6 @@
+nist_dataset/micrographs/
+
+preproc_out.csv
+edge_out.csv
+*.out
+testing.c

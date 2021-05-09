@@ -1,2 +1,3 @@
-# C_NN_OpenACC
-Convolution plus Neural Network written in OpenACC
+# C & NN OpenACC
+
+Convolution plus Neural Network written in C/C++ and parallelised in OpenACC
