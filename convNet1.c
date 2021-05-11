@@ -270,7 +270,9 @@ int** convolve(ConvLayer C, int **input)
 
 }
 double* softmax(double x[]) { 
-
+	/*
+	Softmax activation function for output layer.
+	*/
 	double sum=0.0, num[input_size];
 	static double ratio[input_size];
 	for (int i = 0; i < input_size; ++i)
@@ -287,10 +289,16 @@ double* softmax(double x[]) {
 }
 
 double sigmoid(double x) {
+	/*
+	Sigmoid activation function for neural network nodes
+	*/
 	return 1/(1+expf(-x));
 }
 
 double dSigmoid(double x) {
+	/*
+	Derivative of sigmoid function for back propogation calculations.
+	*/
 	return sigmoid(x)*sigmoid(1-x);
 }
 
