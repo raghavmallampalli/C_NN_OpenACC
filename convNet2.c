@@ -317,8 +317,8 @@ double printarr(double x[], int size) {
 int main(){
 	
 	char image_files[input_size][30] = {
-		"image.csv",
-		"image1.csv"
+		"image_csv_files/image.csv",
+		"image_csv_files/image1.csv"
 	};
 
 	double x[input_size][nfeatures];
