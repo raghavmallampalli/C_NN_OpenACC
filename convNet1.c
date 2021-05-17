@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
+#include <string.h>
 
 /*
 Program to pre-process an image using convolution and predict the class of the image using neural net.
@@ -60,6 +61,31 @@ int** getImage(FILE *inputFile)
         {
             fscanf(inputFile, " %d", &input[i][j]);
 			//printf("%d,",input[i][j]);
+        }
+    }
+
+	return input;
+}
+
+int** getLabels(FILE *inputFile)
+{
+	/*
+	Get image from file and save to array.
+	
+	Arguments:
+	FILE *inputFile		Tab separated pixel values file (rows as rows)
+	
+	Returns:
+	int **input		 	image pixel values, 2D array [image_size][image_size]
+	*/
+	int** input;
+	input = (int **) malloc(sizeof(int *) * 5766);
+    for (int i = 0; i < 5766; i++)
+    {
+        input[i] = (int *) malloc(sizeof(int) * 7);
+        for (int j = 0; j < 7; j++)
+        {
+            fscanf(inputFile, " %d", &input[i][j]);
         }
     }
 
@@ -406,9 +432,19 @@ int main(){
 	}
 
 
+	FILE* fp_labels = fopen("C_NN_OpenACC/nist_dataset/label_encoding.csv","r");
+	int** labels;
+	if (!fp_labels)
+        printf("Can't open file\n");
+    else
+    {
+		labels = getLabels(fp_labels);	
+    }
+
+	fclose(fp_labels);
 
 	// Neural network
-	/*
+	
 	srand(time(0));
 
 
@@ -692,7 +728,7 @@ int main(){
 	// s2 = softmax(dot(s,wo) + bo)
 	// argmax of s2 is the predicted class
 
-	*/
+	
 	return 0;
 
 
