@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
+#include <unistd.h>
 #include <string.h>
 
 /*
@@ -28,7 +29,7 @@ Custom convolution > Average Pooling > Fully connected hidden layer > Output
 
 // NN macros 
 #define N 5
-#define input_size 2
+#define input_size 5766
 #define no_epoch 10000
 #define lr 0.01
 #define hidden_nodes 4
@@ -338,14 +339,15 @@ double printarr(double x[], int size) {
 }
 
 int main(){
-	
-	char image_files[input_size][30] = {
-		"image.csv",
-		"image1.csv"
-	};
+	char image_files[1733*6][30];
+    int k=0;
+    for(int j=1;j<1733;j++)
+        for(int i=0;i<6;i++)
+        sprintf(image_files[k++],"%.5d_%d",j,i);
 
+		printf("Defined files.\n");
 	double x[input_size][nfeatures];
-	int	i=0,j=0,k=0,n=0;
+	int	i=0,j=0,n=0;
 
 	// Setting up convolution layers
 	struct ConvLayer edge;
@@ -356,14 +358,28 @@ int main(){
 	setHyperParamConv(&manual, conv_2_size);
 	
 	FILE *fpi;
-
-	printf("Initiating pre-processing.\n");
+	int file_counter=0,tries=0;
+	printf("Pre-processing data...\n");
 	for(n=0;n<input_size;n++)
 	{
-
 		// Get image (input)
-		printf("File: %s\n", image_files[n]);
-		fpi = fopen(image_files[n], "r");
+		char path[45];
+		strcpy(path,"image_csv_files/");
+		strcat(path,image_files[file_counter++]);
+		strcat(path,".csv");
+		while(1) {
+			if(access(path,R_OK)==0) {
+				//printf("Processing file: %s\n", path);
+				fpi = fopen(path,"r");
+				break;
+			}
+			else {
+				//printf("Skipping file: %s\n", path);
+				strcpy(path,"image_csv_files/");
+				strcat(path,image_files[file_counter++]);
+				strcat(path,".csv");
+			}
+		}
 		int** image = getImage(fpi);
 
 		// 1st layer output
@@ -423,16 +439,15 @@ int main(){
 
 	printf("Pre-processing complete. Beginning neural network training.\n\n");
 
-	printf("Processed data:\n");
-	for(n=0;n<input_size;n++)
-	{
-		for(i=0;i<nfeatures;i++)
-			printf("%f,",x[n][i]);
-		printf("\n");
-	}
+	// printf("Processed data:\n");
+	// for(n=0;n<input_size;n++)
+	// {
+	// 	for(i=0;i<nfeatures;i++)
+	// 		printf("%f,",x[n][i]);
+	// 	printf("\n");
+	// }
 
-
-	FILE* fp_labels = fopen("C_NN_OpenACC/nist_dataset/label_encoding.csv","r");
+	FILE* fp_labels = fopen("nist_dataset/label_encoding.csv","r");
 	int** labels;
 	if (!fp_labels)
         printf("Can't open file\n");
@@ -440,8 +455,19 @@ int main(){
     {
 		labels = getLabels(fp_labels);	
     }
+	// printf("hi");
 
 	fclose(fp_labels);
+
+	// for (size_t i = 0; i < 5766; i++)
+	// {
+	// 	for (size_t j = 0; j < 7; j++)
+	// 	{
+	// 		printf("%d\t",labels[i][j]);
+	// 	}
+	// 	printf("\n");
+	// }
+	
 
 	// Neural network
 	
@@ -516,12 +542,11 @@ int main(){
 		printf("\n");
 	}
 
-
 	
 
 	//double x[input_size][nfeatures];
 	double* soln;
-
+	
 	//for (int i = 0; i < input_size; ++i)
 	//{
 	//	for (int j = 0; j < nfeatures; ++j)
@@ -537,14 +562,24 @@ int main(){
 	// 	printf("%f\n",soln[i]);
 	// }
 
+	double zh[input_size][hidden_nodes], ah[input_size][hidden_nodes];
+	double zo[input_size][output_labels], ao[input_size][output_labels];
+	double temp[output_labels];
+	double* temp2;
+	double dcost_dzo[input_size][output_labels], dzo_dwo[input_size][hidden_nodes];
+	double dcost_wo[hidden_nodes][output_labels], dcost_bo[input_size][output_labels];
+	double dzo_dah[hidden_nodes][output_labels], dcost_dah[input_size][hidden_nodes];
+	double dah_dzh[input_size][hidden_nodes], dzh_dwh[input_size][nfeatures];
+	double dcost_wh[nfeatures][hidden_nodes];
+	double dcost_bh[input_size][hidden_nodes];
+	double temp3[hidden_nodes];
+	double temp4[output_labels];
 
 	for (size_t epoch = 0; epoch < no_epoch; ++epoch)
 	{
 		// forward feed
-		double zh[input_size][hidden_nodes], ah[input_size][hidden_nodes];
-		double zo[input_size][output_labels], ao[input_size][output_labels];
-
 		// computing the hidden layer
+		// printf("1\n");
 		for (int i = 0; i < input_size; ++i)
 		{
 			for (int j = 0; j < hidden_nodes; ++j)
@@ -557,9 +592,7 @@ int main(){
 				ah[i][j] = sigmoid(zh[i][j]);
 			}
 		}
-
-		double temp[output_labels];
-		double* temp2;
+		// printf("2\n");
 		// computing the output layer
 		for (int i = 0; i < input_size; ++i)
 		{
@@ -578,17 +611,18 @@ int main(){
 				ao[i][j] = temp2[j];
 			}
 		}
+		// free(temp2);
 
-
+		// printf("3\n");
 		// Back propogation (cross entropy)
-		double dcost_dzo[input_size][output_labels], dzo_dwo[input_size][hidden_nodes], dcost_wo[hidden_nodes][output_labels], dcost_bo[input_size][output_labels];
-
 		for (int i = 0; i < input_size; ++i)
 		{
+			// printf("hello\n");
 			for (int j = 0; j < hidden_nodes; ++j)
 			{
 				dzo_dwo[i][j] = ah[i][j];
 			}
+			// printf("hi\n");
 			for (int j = 0; j < output_labels; ++j)
 			{
 				dcost_dzo[i][j] = ao[i][j] - labels[i][j];
@@ -610,9 +644,8 @@ int main(){
 
 
 
-		double dzo_dah[hidden_nodes][output_labels], dcost_dah[input_size][hidden_nodes];
-		double dah_dzh[input_size][hidden_nodes], dzh_dwh[input_size][nfeatures];
-
+		
+		// printf("4\n");
 		for (int i = 0; i < hidden_nodes; ++i)
 		{
 			for (int j = 0; j < output_labels; ++j)
@@ -620,7 +653,7 @@ int main(){
 				dzo_dah[i][j] = wo[i][j];
 			}
 		}
-
+		// printf("5\n");
 		for (int i = 0; i < input_size; ++i)
 		{
 			for (int j = 0; j < hidden_nodes; ++j)
@@ -633,7 +666,7 @@ int main(){
 				dah_dzh[i][j] = dSigmoid(zh[i][j]);
 			}
 		}
-
+		// printf("6\n");
 		for (int i = 0; i < input_size; ++i)
 		{
 			for (int j = 0; j < nfeatures; ++j)
@@ -642,8 +675,8 @@ int main(){
 			}
 		}
 
-		double dcost_wh[nfeatures][hidden_nodes];
-
+		
+		// printf("7\n");
 		for (int i = 0; i < nfeatures; ++i)
 		{
 			for (int j = 0; j < hidden_nodes; ++j)
@@ -656,8 +689,8 @@ int main(){
 			}
 		}
 
-		double dcost_bh[input_size][hidden_nodes];
-
+		
+		// printf("8\n");
 		for (int i = 0; i < input_size; ++i)
 		{
 			for (int j = 0; j < hidden_nodes; ++j)
@@ -665,7 +698,7 @@ int main(){
 				dcost_bh[i][j] = dcost_dah[i][j]*dah_dzh[i][j];
 			}
 		}
-
+		// printf("9\n");
 		// Updating Weights
 		for (int i = 0; i < nfeatures; ++i)
 		{
@@ -675,8 +708,8 @@ int main(){
 			}
 		}
 
-		double temp3[hidden_nodes];
-
+		
+		// printf("10\n");
 		for (int i = 0; i < hidden_nodes; ++i)
 		{
 			temp3[i] = 0.0;
@@ -686,7 +719,7 @@ int main(){
 			}
 			bh[i] -= lr*temp3[i];
 		}
-
+		// printf("11\n");
 		for (int i = 0; i < hidden_nodes; ++i)
 		{
 			for (int j = 0; j < output_labels; ++j)
@@ -695,8 +728,8 @@ int main(){
 			}
 		}
 
-		double temp4[output_labels];
-
+		
+		// printf("12\n");
 		for (int i = 0; i < output_labels; ++i)
 		{
 			temp4[i] = 0;
@@ -706,7 +739,7 @@ int main(){
 			}
 			bo[i] -= lr*temp4[i];
 		}
-
+		// printf("13\n");
 		if (epoch%100 == 0)
 		{
 			double loss = 0.0;
@@ -719,7 +752,7 @@ int main(){
 				}
 			}
 		}
-
+		// printf("14\n");
 	}
 
 
