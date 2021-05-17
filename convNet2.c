@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
+#include <unistd.h>
+#include <string.h>
 
 /*
  
@@ -30,7 +32,7 @@ Custom convolution > Average Pooling > Fully connected hidden layer > Output
 
 // NN macros 
 #define N 5
-#define input_size 2
+#define input_size 57
 #define no_epoch 10000
 #define lr 0.01
 #define hidden_nodes 4
@@ -315,14 +317,16 @@ double printarr(double x[], int size) {
 }
 
 int main(){
-	
-	char image_files[input_size][30] = {
-		"image_csv_files/image.csv",
-		"image_csv_files/image1.csv"
-	};
+	printf("blah\n");
+	char image_files[1733*6][30];
+    int k=0;
+    for(int j=1;j<1733;j++)
+        for(int i=0;i<6;i++)
+        sprintf(image_files[k++],"%.5d_%d",j,i);
 
+		printf("Defined files.\n");
 	double x[input_size][nfeatures];
-	int	i=0,j=0,k=0,n=0;
+	int	i=0,j=0,n=0;
 
 	// Setting up convolution layers
 	struct ConvLayer edge;
@@ -333,14 +337,28 @@ int main(){
 	setHyperParamConv(&manual, conv_2_size);
 	
 	FILE *fpi;
-
-	printf("Initiating pre-processing.\n");
+	int file_counter=0,tries=0;
+	printf("Pre-processing data...\n");
 	for(n=0;n<input_size;n++)
 	{
-
 		// Get image (input)
-		printf("File: %s\n", image_files[n]);
-		fpi = fopen(image_files[n], "r");
+		char path[45];
+		strcpy(path,"image_csv_files/");
+		strcat(path,image_files[file_counter++]);
+		strcat(path,".csv");
+		while(1) {
+			if(access(path,R_OK)==0) {
+				//printf("Processing file: %s\n", path);
+				fpi = fopen(path,"r");
+				break;
+			}
+			else {
+				//printf("Skipping file: %s\n", path);
+				strcpy(path,"image_csv_files/");
+				strcat(path,image_files[file_counter++]);
+				strcat(path,".csv");
+			}
+		}
 		int** image = getImage(fpi);
 
 		// 1st layer output
