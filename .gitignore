@@ -1,6 +1,11 @@
+# Directories
 nist_dataset/micrographs/
 .ipynb_checkpoints/*
+.vscode/
+.history/
+####
 
+# Files
 image_csv_files/0*
 image_csv_files/.ipynb_checkpoints/*
 image_csv_files.zip
@@ -10,5 +15,4 @@ preproc_out.csv
 edge_out.csv
 *.out
 testing.c
-.vscode
 *.dSYM

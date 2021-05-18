@@ -32,7 +32,7 @@ Custom convolution > Average Pooling > Fully connected hidden layer > Output
 
 // NN macros 
 #define N 5
-#define input_size 57
+#define input_size 10
 #define no_epoch 10000
 #define lr 0.01
 #define hidden_nodes 4
@@ -340,16 +340,19 @@ double printarr(double x[], int size) {
 	printf("\n");
 	return 0;
 }
+void writeToFile(FILE* fpi, int** layer, int size){
+	for(int i=0;i<size;i++)
+	{
+		for(int j=0;j<size;j++)
+		{
+			fprintf(fpi,"%d\t",layer[i][j]);
+		}
+		fprintf(fpi,"\n");
+	}
+}
 
 int main(){
-	printf("blah\n");
-	char image_files[1733*6][30];
-    int k=0;
-    for(int j=1;j<1733;j++)
-        for(int i=0;i<6;i++)
-        sprintf(image_files[k++],"%.5d_%d",j,i);
-
-		printf("Defined files.\n");
+	
 	double x[input_size][nfeatures];
 	int	i=0,j=0,n=0;
 
@@ -363,6 +366,12 @@ int main(){
 	
 	FILE *fpi;
 	int file_counter=0,tries=0;
+	char image_files[1733*6][30];
+    int k=0;
+    for(int j=1;j<1733;j++)
+        for(int i=0;i<6;i++)
+        sprintf(image_files[k++],"%.5d_%d",j,i);
+
 	printf("Pre-processing data...\n");
 	for(n=0;n<input_size;n++)
 	{
@@ -391,14 +400,7 @@ int main(){
 		
 		//FILE *fpi1;
 		//fpi1 = fopen("edge_out.csv", "w");
-		//for(i=0;i<image_size;i++)
-		//{
-		//	for(j=0;j<image_size;j++)
-		//	{
-		//		fprintf(fpi1,"%d\t",i1[i][j]);
-		//	}
-		//	fprintf(fpi1,"\n");
-		//}
+		//writeToFile(fpi1,i1,image_size);
 		//fclose(fpi1);
 
 		// 2nd layer output
@@ -415,9 +417,6 @@ int main(){
 		
 		// 6th layer output
 		int** i6 = averagePooling(i5, conv_2_size);
-	
-		//FILE *fpi2;
-		//fpi2 = fopen("preproc_out.csv", "w");
 
 		k=0;
 		for(i=0;i<final_2d_size;i++)
@@ -425,12 +424,10 @@ int main(){
 			for(j=0;j<final_2d_size;j++)
 			{
 				x[n][k]=i6[i][j];
-				//fprintf(fpi2,"%d\t",x0[n][k]);
 				k++;
 			}
 		}
 
-		//fclose(fpi2);
 		free(image);	
 		free(i1);
 		free(i2);
@@ -441,17 +438,50 @@ int main(){
 	}
 	fclose(fpi);
 
-	printf("Pre-processing complete. Beginning neural network training.\n\n");
-
-	printf("Processed data:\n");
+	printf("Feature extracted data:\n");
 	for(n=0;n<input_size;n++)
 	{
 		for(i=0;i<nfeatures;i++)
 			printf("%f,",x[n][i]);
 		printf("\n");
 	}
+	
+	// Mean centering and normalisation
+	double u[nfeatures] = {0}, s[nfeatures] = {0};
+	for(i=0;i<nfeatures;i++)
+	{
+		for(n=0;n<input_size;n++)
+			u[i] += x[n][i];
+		u[i]/nfeatures;
+	}
+	for(i=0;i<nfeatures;i++)
+	{
+		for(n=0;n<input_size;n++)
+	        s[i] += pow(x[n][i] - u[i], 2);
+	    s[i] = sqrt(s[i] / nfeatures);
+	}
+	for(i=0;i<nfeatures;i++)
+		for(n=0;n<input_size;n++)
+			x[n][i] = (x[n][i]-u[i])/s[i];
 
-	FILE* fp_labels = fopen("C_NN_OpenACC/nist_dataset/label_encoding.csv","r");
+	
+	printf("Normalised processed data:\n");
+	//FILE *fpi2;
+	//fpi2 = fopen("preproc_out.csv", "w");		
+	for(n=0;n<input_size;n++)
+	{
+		for(i=0;i<nfeatures;i++)
+		{
+			printf("%f,",x[n][i]);
+			//fprintf(fpi2,"%d\t",x[n][i]);
+		}
+		printf("\n");
+	}
+	//fclose(fpi2);
+	printf("Pre-processing complete. Beginning neural network training.\n\n");
+	
+
+	FILE* fp_labels = fopen("nist_dataset/label_encoding.csv","r");
 	int** labels;
 	if (!fp_labels)
         printf("Can't open file\n");
