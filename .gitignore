@@ -10,3 +10,5 @@ preproc_out.csv
 edge_out.csv
 *.out
 testing.c
+.vscode
+*.dSYM

@@ -31,7 +31,7 @@ Custom convolution > Average Pooling > Fully connected hidden layer > Output
 #define N 5
 #define input_size 5766
 #define no_epoch 10000
-#define lr 0.01
+#define lr 0.0001
 #define hidden_nodes 4
 #define output_labels 7
 #define nfeatures 16
@@ -587,7 +587,7 @@ int main(){
 				zh[i][j] = 0.0;
 				for (int k = 0; k < nfeatures; ++k)
 				{
-					zh[i][j] += (x[i][k]*wh[k][j]) + bh[k];
+					zh[i][j] += (x[i][k]*wh[k][j]) + bh[j];
 				}
 				ah[i][j] = sigmoid(zh[i][j]);
 			}
@@ -600,7 +600,7 @@ int main(){
 			{
 				for (int k = 0; k < hidden_nodes; ++k)
 				{
-					zo[i][j] += (ah[i][k]*wo[k][j]) + bo[k];
+					zo[i][j] += (ah[i][k]*wo[k][j]) + bo[j];
 				}
 				temp[j] = zo[i][j];
 			}
@@ -611,6 +611,55 @@ int main(){
 				ao[i][j] = temp2[j];
 			}
 		}
+
+		if (epoch==12)
+		{
+			printf("Printing X:\n");
+			for (size_t i = 0; i < 7; i++)
+			{
+				for (size_t j = 0; j < nfeatures; j++)
+				{
+					printf("%f\t",x[i][j]);
+				}
+				printf("\n\n");
+			}
+
+			printf("Printing zo:\n");
+			for (size_t i = 0; i < 7; i++)
+			{
+				for (size_t j = 0; j < output_labels; j++)
+				{
+					printf("%f\t",zo[i][j]);
+				}
+				printf("\n\n");
+			}
+
+			printf("Printing ao:\n");
+			for (size_t i = 0; i < 7; i++)
+			{
+				for (size_t j = 0; j < output_labels; j++)
+				{
+					printf("%f\t",ao[i][j]);
+				}
+				printf("\n\n");
+			}
+		}
+		
+
+		// if (epoch==0)
+		// {
+		// 	for (size_t i = 0; i < input_size; i++)
+		// 	{
+		// 		for (size_t j = 0; j < nfeatures; j++)
+		// 		{
+		// 			printf("%f\t",x[i][j]);
+		// 		}
+		// 		printf("\n");
+		// 	}
+		// }
+		
+		
+		
 		// free(temp2);
 
 		// printf("3\n");
@@ -740,6 +789,7 @@ int main(){
 			bo[i] -= lr*temp4[i];
 		}
 		// printf("13\n");
+		
 		if (epoch%100 == 0)
 		{
 			double loss = 0.0;
@@ -748,9 +798,9 @@ int main(){
 				for (int j = 0; j < output_labels; ++j)
 				{
 					loss += labels[i][j]*log(ao[i][j]);
-					printf("Loss Function Value at %zu epochs: %f\n", epoch, loss);
 				}
 			}
+			printf("Loss Function Value at %zu epochs: %f\n", epoch, loss);
 		}
 		// printf("14\n");
 	}
