@@ -16,3 +16,4 @@ edge_out.csv
 *.out
 testing.c
 *.dSYM
+temp.c
