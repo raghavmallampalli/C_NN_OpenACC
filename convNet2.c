@@ -33,19 +33,15 @@ Custom convolution > Average Pooling > Fully connected hidden layer > Output
 // NN macros 
 #define N 5
 #define input_size 5766
-#define no_epoch 1000
+#define no_epoch 200
 #define lr 0.01
 #define hidden_nodes 10
 #define output_labels 7
 #define nfeatures 16
 
-typedef struct ConvLayer
-{
-    int InputDim;
-    int **Kernel;
-} ConvLayer;
-
-int** getImage(FILE *inputFile)
+// parallelisation macros
+#define ngangs 2000
+void getImage(FILE *inputFile, int input[image_size][image_size])
 {
 	/*
 	Get image from file and save to array.
@@ -56,11 +52,9 @@ int** getImage(FILE *inputFile)
 	Returns:
 	int **input		 	image pixel values, 2D array [image_size][image_size]
 	*/
-	int** input;
-	input = (int **) malloc(sizeof(int *) * image_size);
+	//#pragma acc parallel loop
     for (int i = 0; i < image_size; i++)
     {
-        input[i] = (int *) malloc(sizeof(int) * image_size);
         for (int j = 0; j < image_size; j++)
         {
             fscanf(inputFile, " %d", &input[i][j]);
@@ -68,7 +62,7 @@ int** getImage(FILE *inputFile)
         }
     }
 
-	return input;
+	return;
 }
 
 int** getLabels(FILE *inputFile)
@@ -84,6 +78,7 @@ int** getLabels(FILE *inputFile)
 	*/
 	int** input;
 	input = (int **) malloc(sizeof(int *) * 5766);
+	//#pragma acc parallel loop
     for (int i = 0; i < 5766; i++)
     {
         input[i] = (int *) malloc(sizeof(int) * 7);
@@ -96,7 +91,7 @@ int** getLabels(FILE *inputFile)
 	return input;
 }
 
-void setEdgeConv(ConvLayer *convInput, int size)
+void setEdgeConvKernel(int kernel[3][3])
 {
 	/*
 	Generate instance of structure with an edge detection kernel and input size
@@ -107,30 +102,22 @@ void setEdgeConv(ConvLayer *convInput, int size)
 	Returns:
 	-
 	*/
-
-	// Dimension
-    convInput->InputDim = size;
-
-    // Kernel Input.
-    convInput->Kernel = malloc(sizeof(int *) * 3);
-    for (int i = 0; i < 3; i++)
-        convInput->Kernel[i] = (int *) malloc(sizeof(int) * 3);
 	
 	// Kernel set
-    (convInput->Kernel)[0][0] = -1;
-	(convInput->Kernel)[0][1] = 0;
-	(convInput->Kernel)[0][2] = 1;
-	(convInput->Kernel)[1][0] = -2;
-	(convInput->Kernel)[1][1] = 0;
-	(convInput->Kernel)[1][2] = 2;
-	(convInput->Kernel)[2][0] = -1;
-	(convInput->Kernel)[2][1] = 0;
-	(convInput->Kernel)[2][2] = 1;
+    kernel[0][0] = -1;
+	kernel[0][1] = 0;
+	kernel[0][2] = 1;
+	kernel[1][0] = -2;
+	kernel[1][1] = 0;
+	kernel[1][2] = 2;
+	kernel[2][0] = -1;
+	kernel[2][1] = 0;
+	kernel[2][2] = 1;
 
     return;
 }
 
-void setSharpenConv(ConvLayer *convInput, int size)
+void setSharpenConvKernel(int kernel[3][3])
 {
 	/*
 	Generate instance of structure with a sharpen kernel and input size
@@ -141,31 +128,23 @@ void setSharpenConv(ConvLayer *convInput, int size)
 	Returns:
 	-
 	*/
-
-	// Dimension
-    convInput->InputDim = size;
-
-    // Kernel Input.
-    convInput->Kernel = malloc(sizeof(int *) * 3);
-    for (int i = 0; i < 3; i++)
-        convInput->Kernel[i] = (int *) malloc(sizeof(int) * 3);
 	
 	// Kernel set
-    (convInput->Kernel)[0][0] = 0;
-	(convInput->Kernel)[0][1] = -1;
-	(convInput->Kernel)[0][2] = 0;
-	(convInput->Kernel)[1][0] = -1;
-	(convInput->Kernel)[1][1] = 5;
-	(convInput->Kernel)[1][2] = -1;
-	(convInput->Kernel)[2][0] = 0;
-	(convInput->Kernel)[2][1] = -1;
-	(convInput->Kernel)[2][2] = 0;
+    kernel[0][0] = 0;
+	kernel[0][1] = -1;
+	kernel[0][2] = 0;
+	kernel[1][0] = -1;
+	kernel[1][1] = 5;
+	kernel[1][2] = -1;
+	kernel[2][0] = 0;
+	kernel[2][1] = -1;
+	kernel[2][2] = 0;
 
     return;
 }
 
 
-void setHyperParamConv(ConvLayer *convInput, int size)
+void setHyperParamConvKernel(int kernel[3][3])
 {
 	/*
 	Generate instance of structure with a custom kernel and input size
@@ -177,140 +156,34 @@ void setHyperParamConv(ConvLayer *convInput, int size)
 	-
 	*/
 
-	// Dimension
-    convInput->InputDim = size;
-
-    // Kernel Initialize
-    convInput->Kernel = malloc(sizeof(int *) * 3);
-    for (int i = 0; i < 3; i++)
-        convInput->Kernel[i] = (int *) malloc(sizeof(int) * 3);
-	
 	// Kernel set
-    (convInput->Kernel)[0][0] = -1;
-	(convInput->Kernel)[0][1] = -1;
-	(convInput->Kernel)[0][2] = -1;
-	(convInput->Kernel)[1][0] = -1;
-	(convInput->Kernel)[1][1] = 8;
-	(convInput->Kernel)[1][2] = -1;
-	(convInput->Kernel)[2][0] = -1;
-	(convInput->Kernel)[2][1] = -1;
-	(convInput->Kernel)[2][2] = -1;
+    kernel[0][0] = -1;
+	kernel[0][1] = -1;
+	kernel[0][2] = -1;
+	kernel[1][0] = -1;
+	kernel[1][1] = 8;
+	kernel[1][2] = -1;
+	kernel[2][0] = -1;
+	kernel[2][1] = -1;
+	kernel[2][2] = -1;
 
     return;
 }
 
-int** averagePooling(int **input, int inputSize)
-{
-	/*
-	Perform average pooling of input, reduce each dimension by 4 times.
-	
-	Arguments:
-	int **input			input data, 2D array [inputSize][inputSize]
-	int inputSize		Input size of pooling
-	Returns:
-	int **output		output data, 2D array [inputSize/4][inputSize/4]
-	*/
-
-	int outputSize = inputSize/4;
-	int** output = (int **) malloc(sizeof(int *) * outputSize);
-	for(int i=0;i<outputSize;i++)
-		output[i] = (int *) malloc(sizeof(int) * outputSize);
-
-	int k=0,l;
-
-	for(int i=0;i<inputSize;i+=4)
-	{
-		l=0;
-		for(int j=0;j<inputSize;j+=4)
-		{
-			output[k][l] = 0.25*(input[i][j]+input[i+1][j]+input[i][j+1]+input[i+1][j+1]);
-			l=l+1;
-		}
-		k=k+1;
-	}
-	return output;
-}
-
-int** convolve(ConvLayer C, int **input)
-{
-	/*
-	Perform convolution of input.
-	Input and output are of same dimension: borders are set to 0
-	Kernel used is 3x3
-	
-	Arguments:
-	ConvLayer *convInput		
-
-	int **input				input data, 2D array [C.InputDim][C.InputDim]
-	Returns:
-	int **output			output data, 2D array [C.InputDim][C.InputDim]
-	*/
-
-	int** output = (int **) malloc(sizeof(int *) * C.InputDim);
-	for(int i=0;i<C.InputDim;i++)
-		output[i] = (int *) malloc(sizeof(int) * C.InputDim);
-
-	for(int i=0;i<C.InputDim;i++)
-	{
-		for(int j=0;j<C.InputDim;j++)
-		{	
-			if ( i!=0 && j!=0 && i!=(C.InputDim-1) && j!=(C.InputDim-1) )
-			{
-				output[i][j] = (
-					(C.Kernel)[0][0]*input[i-1][j-1] +
-					(C.Kernel)[0][1]*input[i-1][j] +
-					(C.Kernel)[0][2]*input[i-1][j+1] +
-					
-					(C.Kernel)[1][0]*input[i][j-1] +
-					(C.Kernel)[1][1]*input[i][j] +
-					(C.Kernel)[1][2]*input[i][j+1] +
-
-					(C.Kernel)[2][0]*input[i+1][j-1] +
-					(C.Kernel)[2][1]*input[i+1][j] +
-					(C.Kernel)[2][2]*input[i+1][j+1]
-				);
-
-			}
-			else
-				output[i][j]=0; // FIX: Replace with proper calculations if time is there
-			//else
-			//{
-			//	int l,r,lt,t,rt,lb,b,rb;
-			//	if (i==0)
-			//		l=0;
-			//	if (i==(C.InputDim-1))
-			//		r=0;
-			//	if (j==0)
-			//		t=0;
-			//	if (j==(C.InputDim-1))
-			//		b=0;
-			//	
-			//	if (l==0 && t==0)
-			//		lt=0;
-			//	if (l==0 && b==0)
-			//		lb=0;
-			//	if (r==0 && t==0)
-			//		rt=0;
-			//	if (r==0 && b==0)
-			//		rb=0;
-			//}
-		}
-	}
-	return output;
-
-}
 double* softmax(double x[]) { 
 	/*
 	Softmax activation function for output layer.
 	*/
+	//#pragma acc data create(ratio,num)
 	double sum=0.0, num[output_labels];
 	static double ratio[output_labels];
 	for (int i = 0; i < output_labels; ++i)
 	{
-		sum+=expl(x[i]);
 		num[i] = expl(x[i]);
+		sum+=expl(x[i]);
 	}
-
+	// Doesn't help without present
+	//#pragma acc parallel loop
 	for (int i = 0; i < output_labels; ++i)
 	{
 		ratio[i] = num[i]/sum;
@@ -538,25 +411,24 @@ double loss_function(int labels1[][output_labels], double ao1[][output_labels])
 int main(){
 	
 	double x[input_size][nfeatures];
-	int	i=0,j=0,n=0;
+	int	i=0,j=0,n=0,l=0;
 
-	// Setting up convolution layers
-	struct ConvLayer edge;
-	setEdgeConv(&edge, image_size);
-	struct ConvLayer sharp;
-	setSharpenConv(&sharp, conv_1_size);
-	struct ConvLayer manual;
-	setHyperParamConv(&manual, conv_2_size);
-	
+	// Setting up convolution layers and inputs
+	int edge[3][3],sharp[3][3],manual[3][3];
+	setEdgeConvKernel(edge);
+	setSharpenConvKernel(sharp);
+	setHyperParamConvKernel(manual);
+	int i1[image_size][image_size],i2[conv_1_size][conv_1_size],i3[conv_1_size][conv_1_size],i4[conv_2_size][conv_2_size],i5[conv_2_size][conv_2_size],i6[final_2d_size][final_2d_size];
+
 	FILE *fpi;
-	int file_counter=0,tries=0;
+	int file_counter=0;
 	char image_files[1733*6][30];
     int k=0;
     for(int j=1;j<1733;j++)
         for(int i=0;i<6;i++)
-        sprintf(image_files[k++],"%.5d_%d",j,i);
+	        sprintf(image_files[k++],"%.5d_%d",j,i);
 
-	printf("Pre-processing data...\n");
+	printf("\n\nPre-processing data...\n");
 	for(n=0;n<input_size;n++)
 	{
 		// Get image (input)
@@ -577,48 +449,150 @@ int main(){
 				strcat(path,".csv");
 			}
 		}
-		int** image = getImage(fpi);
 
-		// 1st layer output
-		int** i1 = convolve(edge, image);
+		// Load image
+		int image[image_size][image_size];
+		getImage(fpi,image);
+
 		
-		//FILE *fpi1;
-		//fpi1 = fopen("edge_out.csv", "w");
-		//writeToFile(fpi1,i1,image_size);
-		//fclose(fpi1);
+		//#pragma acc kernels
+		#pragma acc data copyin(edge, sharp, manual, image[0:image_size][0:image_size]) create(i1[0:image_size][0:image_size],i2[0:conv_1_size][0:conv_1_size],i3[0:conv_1_size][0:conv_1_size],i4[0:conv_2_size][0:conv_2_size],i5[0:conv_2_size][0:conv_2_size],i6[0:final_2d_size][0:final_2d_size]) copyout(i6[:][:])
+		{
 
-		// 2nd layer output
-		int** i2 = averagePooling(i1, image_size);
 
-		// 3rd layer output
-		int** i3 = convolve(sharp, i2);
+			// 1st layer output
+			#pragma acc parallel loop collapse(2) num_gangs(ngangs) present(edge[0:3][0:3],image[0:image_size][0:image_size],i1[0:image_size][0:image_size]) 
+			for(int i=0;i<image_size;i++)
+			{
+				for(int j=0;j<image_size;j++)
+				{	
+					if ( i!=0 && j!=0 && i!=(image_size-1) && j!=(image_size-1) )
+					{
+						i1[i][j] = (
+							edge[0][0]*image[i-1][j-1] +
+							edge[0][1]*image[i-1][j] +
+							edge[0][2]*image[i-1][j+1] +
+							
+							edge[1][0]*image[i][j-1] +
+							edge[1][1]*image[i][j] +
+							edge[1][2]*image[i][j+1] +
 
-		// 4th layer output
-		int** i4 = averagePooling(i3, conv_1_size);
+							edge[2][0]*image[i+1][j-1] +
+							edge[2][1]*image[i+1][j] +
+							edge[2][2]*image[i+1][j+1]
+						);
+
+					}
+					else
+						i1[i][j]=0;
+				}
+			}
+
+			// 2nd layer output
+			k=0;
+			#pragma acc parallel loop num_gangs(ngangs) independent present(i1[:][:],i2[:][:])
+			for(int i=0;i<image_size;i+=4)
+			{
+				l=0;
+				for(int j=0;j<image_size;j+=4)
+				{
+					i2[k][l++] = 0.25*(i1[i][j]+i1[i+1][j]+i1[i][j+1]+i1[i+1][j+1]);
+				}
+				k=k+1;
+			}
+
+			// 3rd layer output
+			#pragma acc parallel loop collapse(2) num_gangs(ngangs) present(sharp[0:3][0:3],i2[0:conv_1_size][0:conv_1_size],i3[0:conv_1_size][0:conv_1_size]) 
+			for(int i=0;i<conv_1_size;i++)
+			{
+				for(int j=0;j<conv_1_size;j++)
+				{	
+					if ( i!=0 && j!=0 && i!=(conv_1_size-1) && j!=(conv_1_size-1) )
+					{
+						i3[i][j] = (
+							sharp[0][0]*i2[i-1][j-1] +
+							sharp[0][1]*i2[i-1][j] +
+							sharp[0][2]*i2[i-1][j+1] +
+							
+							sharp[1][0]*i2[i][j-1] +
+							sharp[1][1]*i2[i][j] +
+							sharp[1][2]*i2[i][j+1] +
+
+							edge[2][0]*image[i+1][j-1] +
+							edge[2][1]*image[i+1][j] +
+							edge[2][2]*image[i+1][j+1]
+						);
+
+					}
+					else
+						i3[i][j]=0;
+				}
+			}
+
+			// 4th layer output
+			k=0;
+			#pragma acc parallel loop num_gangs(ngangs) independent present(i3,i4)
+			for(int i=0;i<conv_1_size;i+=4)
+			{
+				l=0;
+				for(int j=0;j<conv_1_size;j+=4)
+				{
+					i4[k][l++] = 0.25*(i3[i][j]+i3[i+1][j]+i3[i][j+1]+i3[i+1][j+1]);
+				}
+				k=k+1;
+			}
+			
+			// 5th layer output
+			#pragma acc parallel loop collapse(2) num_gangs(ngangs) present(manual[0:3][0:3],i4[0:conv_2_size][0:conv_2_size],i5[0:conv_2_size][0:conv_2_size]) 
+			for(int i=0;i<conv_2_size;i++)
+			{
+				for(int j=0;j<conv_2_size;j++)
+				{	
+					if ( i!=0 && j!=0 && i!=(conv_2_size-1) && j!=(conv_2_size-1) )
+					{
+						i5[i][j] = (
+							manual[0][0]*i4[i-1][j-1] +
+							manual[0][1]*i4[i-1][j] +
+							manual[0][2]*i4[i-1][j+1] +
+							
+							manual[1][0]*i4[i][j-1] +
+							manual[1][1]*i4[i][j] +
+							manual[1][2]*i4[i][j+1] +
+
+							edge[2][0]*image[i+1][j-1] +
+							edge[2][1]*image[i+1][j] +
+							edge[2][2]*image[i+1][j+1]
+						);
+
+					}
+					else
+						i5[i][j]=0;
+				}
+			}
 		
-		// 5th layer output
-		int** i5 = convolve(manual, i4);
-		
-		// 6th layer output
-		int** i6 = averagePooling(i5, conv_2_size);
+			// 6th layer output
+			k=0;
+			#pragma acc parallel loop num_gangs(ngangs)  independent present(i5,i6)
+			for(int i=0;i<conv_2_size;i+=4)
+			{
+				l=0;
+				for(int j=0;j<conv_2_size;j+=4)
+				{
+					i6[k][l++] = 0.25*(i5[i][j]+i5[i+1][j]+i5[i][j+1]+i5[i+1][j+1]);
+				}
+				k=k+1;
+			}
+		}
 
 		k=0;
+		//#pragma acc loop
 		for(i=0;i<final_2d_size;i++)
 		{
 			for(j=0;j<final_2d_size;j++)
 			{
-				x[n][k]=i6[i][j];
-				k++;
+				x[n][k++]=i6[i][j];
 			}
 		}
-
-		free(image);	
-		free(i1);
-		free(i2);
-		free(i3);
-		free(i4);
-		free(i5);
-		free(i6);
 	}
 	fclose(fpi);
 	//printf("Feature extracted data:\n");
@@ -736,33 +710,33 @@ int main(){
 	// }
 	
 
-	printf("Bias1:\n");
-	printarr(bh,hidden_nodes);
+	// printf("Bias1:\n");
+	// printarr(bh,hidden_nodes);
 
-	printf("Bias2:\n");
-	printarr(bo,output_labels); 
+	// printf("Bias2:\n");
+	// printarr(bo,output_labels); 
 
-	printf("\n");
-	printf("Weights1:\n");
-	for (int i = 0; i < nfeatures; ++i)
-	{
-		for (int j = 0; j < hidden_nodes; ++j)
-		{
-			printf("%f\t",wh[i][j]);
-		}
-		printf("\n");
-	}
+	// printf("\n");
+	// printf("Weights1:\n");
+	// for (int i = 0; i < nfeatures; ++i)
+	// {
+	// 	for (int j = 0; j < hidden_nodes; ++j)
+	// 	{
+	// 		printf("%f\t",wh[i][j]);
+	// 	}
+	// 	printf("\n");
+	// }
 
-	printf("\n");
-	printf("Weights2:\n");
-	for (int i = 0; i < hidden_nodes; ++i)
-	{
-		for (int j = 0; j < output_labels; ++j)
-		{
-			printf("%f\t",wo[i][j]);
-		}
-		printf("\n");
-	}
+	// printf("\n");
+	// printf("Weights2:\n");
+	// for (int i = 0; i < hidden_nodes; ++i)
+	// {
+	// 	for (int j = 0; j < output_labels; ++j)
+	// 	{
+	// 		printf("%f\t",wo[i][j]);
+	// 	}
+	// 	printf("\n");
+	// }
 
     double zh[input_size][hidden_nodes], ah[input_size][hidden_nodes];
 	double zo[input_size][output_labels], ao[input_size][output_labels];
@@ -777,16 +751,21 @@ int main(){
 
 for (int epoch = 0; epoch < no_epoch; epoch++)
     {
-
+		double sum=0.0;
+		//#pragma acc data create(zh,ah,zo,ao) copyin(x,wh,bh,wo,bo) copyout(ao)
+		{
 		for (size_t i = 0; i < input_size; i++)
     	{
+			//#pragma acc parallel loop
         	for (size_t j = 0; j < hidden_nodes; j++)
         	{
             	zh[i][j] = 0.0;
+				sum = 0.0;
             	for (size_t k = 0; k < nfeatures; k++)
             	{
-                	zh[i][j] += x[i][k]*wh[k][j];
+                	sum += x[i][k]*wh[k][j];
             	}
+				zh[i][j] += sum;
             	zh[i][j] += bh[j];
             	ah[i][j]=sigmoid(zh[i][j]);
         	}
@@ -817,7 +796,7 @@ for (int epoch = 0; epoch < no_epoch; epoch++)
         
     	}
     	// free(temp2);
-
+		}
 		// Correct upto here
 
 		// Phase 1
@@ -1008,7 +987,7 @@ for (int epoch = 0; epoch < no_epoch; epoch++)
 		}
 		if (epoch==no_epoch-1)
 		{
-			printf("Max Acc = %f @ %d epcohs\n",max_acc,epoch_opt);
+			printf("Max Acc = %f @ %d epochs\n",max_acc,epoch_opt);
 		}
 		
     }
