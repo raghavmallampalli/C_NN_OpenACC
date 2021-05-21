@@ -171,13 +171,14 @@ void setHyperParamConvKernel(int kernel[3][3])
     return;
 }
 
-double* softmax(double x[]) { 
+void softmax(double x[], double ratio[]) { 
 	/*
 	Softmax activation function for output layer.
 	*/
 	//#pragma acc data create(ratio,num)
+	
 	double sum=0.0, num[output_labels];
-	static double ratio[output_labels];
+	// static double ratio[output_labels];
 	for (int i = 0; i < output_labels; ++i)
 	{
 		num[i] = expl(x[i]);
@@ -189,7 +190,7 @@ double* softmax(double x[]) {
 	{
 		ratio[i] = num[i]/sum;
 	}
-	return ratio; 
+	// return ratio; 
 }
 
 double sigmoid(double x) {
@@ -223,176 +224,6 @@ void writeToFile(FILE* fpi, int** layer, int size){
 		}
 		fprintf(fpi,"\n");
 	}
-}
-void feedforward(double x1[][nfeatures],double wh1[][hidden_nodes], double bh1[],
-double wo1[][output_labels], double bo1[], double zh1[][hidden_nodes], double ah1[][hidden_nodes],
-double zo1[][output_labels], double ao1[][output_labels])
-{
-    /*
-    Performs the forward forward phase of a CNN.
-
-    Input:
-    x1[][nfeatures]: Dataset
-    wh1[][hidden_nodes]: weights of the hidden layer
-    bh1[]: Bias of the hidden layer
-    wo1[][hidden_nodes]: weights of the output layer
-    bo1[]: Bias of the output layer
-
-    Calculates:
-    ah1: Output value for the hidden node
-    ao1: Output value for the output node
-    */
-    for (size_t i = 0; i < input_size; i++)
-    {
-        for (size_t j = 0; j < hidden_nodes; j++)
-        {
-            zh1[i][j] = 0.0;
-            for (size_t k = 0; k < nfeatures; k++)
-            {
-                zh1[i][j] += x1[i][k]*wh1[k][j];
-            }
-            zh1[i][j] += bh1[j];
-            ah1[i][j]=sigmoid(zh1[i][j]);
-        }
-    }
-
-    double temp[output_labels];
-    double* temp2;
-    for (size_t i = 0; i < input_size; i++)
-    {
-        for (size_t j = 0; j < output_labels; j++)
-        {
-            zo1[i][j]=0.0;
-            for (size_t k = 0; k < hidden_nodes; k++)
-            {
-                zo1[i][j] += ah1[i][k]*wo1[k][j];
-            }
-            zo1[i][j] += bo1[j];
-            temp[j] = zo1[i][j];
-        }
-        temp2 = softmax(temp);
-        for (size_t j = 0; j < output_labels; j++)
-        {
-            ao1[i][j] = temp2[j];
-        }
-        
-    }
-    // free(temp2);
-}
-void backprpogation(double x1[][nfeatures], int labels1[][output_labels],
-double wh1[][hidden_nodes], double bh1[], double wo1[][output_labels], double bo1[], 
-double zh1[][hidden_nodes], double ah1[][hidden_nodes], double zo1[][output_labels], 
-double ao1[][output_labels], double dcost_dzo1[][output_labels],
-double dzo_dwo1[][hidden_nodes],double dcost_wo1[][output_labels], 
-double dcost_bo1[][output_labels], double dzo_dah1[][output_labels], 
-double dcost_dah1[][hidden_nodes], double dah_dzh1[][hidden_nodes], 
-double dzh_dwh1[][nfeatures], double dcost_wh1[][hidden_nodes],
-double dcost_bh1[][hidden_nodes])
-{
-    // Phase 1
-    for (size_t i = 0; i < input_size; i++)
-    {
-        for (size_t j = 0; j < output_labels; j++)
-        {
-            dcost_dzo1[i][j] = ao1[i][j]-labels1[i][j];
-            dcost_bo1[i][j] = dcost_dzo1[i][j];
-        }
-        for (size_t j = 0; j < hidden_nodes; j++)
-        {
-            dzo_dwo1[i][j] = ah1[i][j];
-        }   
-    }
-
-    for (size_t i = 0; i < hidden_nodes; i++)
-    {
-        for (size_t j = 0; j < output_labels; j++)
-        {
-            dcost_wo1[i][j] = 0.0;
-            for (size_t k = 0; k < input_size; k++)
-            {
-                dcost_wo1[i][j]+=dzo_dwo1[k][i]*dcost_dzo1[k][j];
-            }
-        }
-    }
-
-    // Phase 2
-    for (size_t i = 0; i < hidden_nodes; i++)
-    {
-        for (size_t j = 0; j < output_labels; j++)
-        {
-            dzo_dah1[i][j] = wo1[i][j];
-        }
-    }
-
-    for (size_t i = 0; i < input_size; i++)
-    {
-        for (size_t j = 0; j < hidden_nodes; j++)
-        {
-            dcost_dah1[i][j] = 0.0;
-            for (size_t k = 0; k < output_labels; k++)
-            {
-                dcost_dah1[i][j]+=dcost_dzo1[i][k]*dzo_dah1[j][k];
-            }
-            dah_dzh1[i][j] = dSigmoid(zh1[i][j]);
-            dcost_bh1[i][j] = dcost_dah1[i][j]*dah_dzh1[i][j];
-        }
-        
-        for (size_t j = 0; j < nfeatures; j++)
-        {
-            dzh_dwh1[i][j] = x1[i][j];
-        } 
-    }
-
-    for (size_t i = 0; i < nfeatures; i++)
-    {
-        for (size_t j = 0; j < hidden_nodes; j++)
-        {
-            dcost_wh1[i][j] = 0.0;
-            for (size_t k = 0; k < input_size; k++)
-            {
-                dcost_wh1[i][j] += dzh_dwh1[k][i]*(dah_dzh1[k][j]*dcost_dah1[k][j]);
-            }
-        }
-    }
-
-
-    // Updating Weights for each layer
-    for (size_t i = 0; i < nfeatures; i++)
-    {
-        for (size_t j = 0; j < hidden_nodes; j++)
-        {
-            wh1[i][j] -= lr*dcost_wh1[i][j];
-        }
-    }
-
-    double temp;
-    for (size_t i = 0; i < hidden_nodes; i++)
-    {
-        temp=0.0;
-        for (size_t j = 0; j < input_size; j++)
-        {
-            temp+=dcost_bh1[j][i];
-        }
-        bh1[i] -= lr*temp;
-    }
-    
-    for (size_t i = 0; i < hidden_nodes; i++)
-    {
-        for (size_t j = 0; j < output_labels; j++)
-        {
-            wo1[i][j] -= lr*dcost_wo1[i][j];
-        }   
-    }
-
-    for (size_t i = 0; i < output_labels; i++)
-    {
-        temp=0.0;
-        for (size_t j = 0; j < input_size; j++)
-        {
-            temp+=dcost_bo1[j][i];
-        }
-        bo1[i] -= lr*temp;
-    }
 }
 
 double loss_function(int labels1[][output_labels], double ao1[][output_labels])
@@ -597,47 +428,6 @@ int main(){
 		}
 	}
 	fclose(fpi);
-	//printf("Feature extracted data:\n");
-	//for(n=0;n<input_size;n++)
-	//{
-	//	for(i=0;i<nfeatures;i++)
-	//		printf("%f,",x[n][i]);
-	//	printf("\n");
-	//}
-	
-	// // Mean centering and normalisation
-	// double u[nfeatures] = {0}, s[nfeatures] = {0};
-	// for(i=0;i<nfeatures;i++)
-	// {
-	// 	for(n=0;n<input_size;n++)
-	// 		u[i] += x[n][i];
-	// 	u[i]/nfeatures;
-	// }
-	// for(i=0;i<nfeatures;i++)
-	// {
-	// 	for(n=0;n<input_size;n++)
-	//         s[i] += pow(x[n][i] - u[i], 2);
-	//     s[i] = sqrt(s[i] / nfeatures);
-	// }
-	// printf("Normalizing...\n");
-	// for(i=0;i<nfeatures;i++)
-	// 	for(n=0;n<input_size;n++)
-	// 		x[n][i] = (x[n][i]-u[i])/s[i];
-
-	
-	//printf("Normalised processed data:\n");
-	//FILE *fpi2;
-	//fpi2 = fopen("preproc_out.csv", "w");		
-	//for(n=0;n<input_size;n++)
-	//{
-	//	for(i=0;i<nfeatures;i++)
-	//	{
-	//		printf("%f,",x[n][i]);
-	//		//fprintf(fpi2,"%d\t",x[n][i]);
-	//	}
-	//	printf("\n");
-	//}
-	//fclose(fpi2);
 	printf("Pre-processing complete. Beginning neural network training.\n\n");
 	
 
@@ -655,24 +445,9 @@ int main(){
 	// Feed Forward Neural Network
 	double bh[hidden_nodes];
 	double bo[output_labels];
-
-	// #pragma acc kernels
-	// for (int i = 0; i < hidden_nodes; ++i)
-	// {
-	// 	srand(time(0)+rand());
-	// 	bh[i] = ((double)rand())/((double)RAND_MAX);
-	// }
-
-	// #pragma acc kernels
-	// for (int i = 0; i < output_labels; ++i)
-	// {
-	// 	srand(time(0)+rand());
-	// 	bo[i] = ((double)rand())/((double)RAND_MAX);
-	// }
-
-
 	double wh[nfeatures][hidden_nodes];
 	double wo[hidden_nodes][output_labels];
+
 	srand(time(0)+rand());
 	// #pragma acc kernels
 	for (int i = 0; i < nfeatures; ++i)
@@ -720,34 +495,6 @@ int main(){
 	// }
 	
 
-	// printf("Bias1:\n");
-	// printarr(bh,hidden_nodes);
-
-	// printf("Bias2:\n");
-	// printarr(bo,output_labels); 
-
-	// printf("\n");
-	// printf("Weights1:\n");
-	// for (int i = 0; i < nfeatures; ++i)
-	// {
-	// 	for (int j = 0; j < hidden_nodes; ++j)
-	// 	{
-	// 		printf("%f\t",wh[i][j]);
-	// 	}
-	// 	printf("\n");
-	// }
-
-	// printf("\n");
-	// printf("Weights2:\n");
-	// for (int i = 0; i < hidden_nodes; ++i)
-	// {
-	// 	for (int j = 0; j < output_labels; ++j)
-	// 	{
-	// 		printf("%f\t",wo[i][j]);
-	// 	}
-	// 	printf("\n");
-	// }
-
     double zh[input_size][hidden_nodes], ah[input_size][hidden_nodes];
 	double zo[input_size][output_labels], ao[input_size][output_labels];
 	double dcost_dzo[input_size][output_labels], dzo_dwo[input_size][hidden_nodes];
@@ -757,12 +504,13 @@ int main(){
 	double dcost_wh[nfeatures][hidden_nodes];
 	double dcost_bh[input_size][hidden_nodes];
 	double temp_mat[input_size][hidden_nodes];
+	double temp2[output_labels];
 	double temp_acc = 0, max_acc = 0;
 	int epoch_opt = 0;
 
 for (int epoch = 0; epoch < no_epoch; epoch++)
     {
-		#pragma acc data create(zh,ah,zo,ao,dcost_dzo,dzo_dwo,dcost_wo,dcost_bo,dzo_dah,dcost_dah,dah_dzh,dzh_dwh,dcost_wh,dcost_bh,temp_mat) copyin(x,wh,bh,wo,bo) copyout(ao,bo,bh,wo,wh)
+		#pragma acc data create(zh,ah,zo,ao,dcost_dzo,dzo_dwo,dcost_wo,dcost_bo,dzo_dah,dcost_dah,dah_dzh,dzh_dwh,dcost_wh,dcost_bh,temp_mat,temp2) copyin(x,wh,bh,wo,bo) copyout(ao,bo,bh,wo,wh)
 		{
 			#pragma acc kernels
 			for (size_t i = 0; i < input_size; i++)
@@ -787,8 +535,8 @@ for (int epoch = 0; epoch < no_epoch; epoch++)
     		#pragma acc kernels
     		for (size_t i = 0; i < input_size; i++)
     		{
-				double temp[output_labels];
-    			double* temp2;
+				// double temp[output_labels],temp2[output_labels];
+				double sum = 0.0;
         		for (size_t j = 0; j < output_labels; j++)
         		{
             		zo[i][j]=0.0;
@@ -797,14 +545,22 @@ for (int epoch = 0; epoch < no_epoch; epoch++)
                 		zo[i][j] += ah[i][k]*wo[k][j];
             		}
             		zo[i][j] += bo[j];
-            		temp[j] = zo[i][j];
+            		// temp[j] = zo[i][j];
+					sum+=exp(zo[i][j]); //denominator for softmax
         		}
-        		temp2 = softmax(temp);
-        		for (size_t j = 0; j < output_labels; j++)
-        		{
-            		ao[i][j] = temp2[j];
-				// ao[i][j] = (ao[i][j]<0.000001 && ao[i][j]>0) ? 0.000001:ao[i][j];
-        		}
+				// softmax
+				for (size_t j = 0; j < output_labels; j++)
+				{
+					ao[i][j] = exp(zo[i][j])/sum;
+				}
+				
+
+
+        		// for (size_t j = 0; j < output_labels; j++)
+        		// {
+            	// 	ao[i][j] = temp2[j];
+				// // ao[i][j] = (ao[i][j]<0.000001 && ao[i][j]>0) ? 0.000001:ao[i][j];
+        		// }
         
     		}
     		// free(temp2);
