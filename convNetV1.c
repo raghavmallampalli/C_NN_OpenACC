@@ -34,12 +34,12 @@ Custom convolution > Average Pooling > Fully connected hidden layer > Output
 #define input_size 5766
 #define no_epoch 200
 #define lr 0.01
-#define hidden_nodes 10
+#define hidden_nodes 7
 #define output_labels 7
 #define nfeatures 16
 
 // parallelisation macros
-#define ngangs 2500
+#define ngangs 50
 
 void getImage(FILE *inputFile, int input[image_size][image_size])
 {
@@ -699,8 +699,8 @@ for (int epoch = 0; epoch < no_epoch; epoch++)
     FILE* fpi3;
     fpi3=fopen("time_vals.csv","a");
 
-	// num_gangs,time,parallel_true
-    fprintf(fpi3,"%d,%lu,1\n",ngangs,tot_time);
+	// num_gangs,num_epochs,num_hidden,time,parallel_true
+    fprintf(fpi3,"%d,%d,%d,%lu,1\n",ngangs,no_epoch,hidden_nodes,tot_time);
     fclose(fpi3);
 
     free(labels);
