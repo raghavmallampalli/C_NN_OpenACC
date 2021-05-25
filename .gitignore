@@ -18,3 +18,4 @@ testing.c
 *.dSYM
 temp.c
 convNet2_shuffled.c
+plotting.py
