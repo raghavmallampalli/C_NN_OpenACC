@@ -20,7 +20,7 @@ Input > Edge detection convolution > Average Pooling > Sharpen convolution > Ave
 Custom convolution > Average Pooling > Fully connected hidden layer > Output
 
 256 > 256 > 64 > 64 > 16 > 16 > 4 (flattened to 16) >
-20 > 7 (output)
+10 > 7 (output)
 */
 
 // conv macros
@@ -66,13 +66,13 @@ void getImage(FILE *inputFile, int input[image_size][image_size])
 int** getLabels(FILE *inputFile)
 {
 	/*
-	Get image from file and save to array.
+	Get labels from file and save to array.
 	
 	Arguments:
-	FILE *inputFile		Tab separated pixel values file (rows as rows)
+	FILE *inputFile		Tab separated label values file (rows as output for a sample)
 	
 	Returns:
-	int **input		 	image pixel values, 2D array [image_size][image_size]
+	int **input		 	label values, 2D array [input_size][output_labels]
 	*/
 	int** input;
 	input = (int **) malloc(sizeof(int *) * 5766);
@@ -91,13 +91,7 @@ int** getLabels(FILE *inputFile)
 void setEdgeConvKernel(int kernel[3][3])
 {
 	/*
-	Generate instance of structure with an edge detection kernel and input size
-	
-	Arguments:
-	ConvLayer *convInput		
-	int size					Input size of convolution
-	Returns:
-	-
+	Generate instance of edge detection kernel
 	*/
 	
 	// Kernel set
@@ -117,13 +111,7 @@ void setEdgeConvKernel(int kernel[3][3])
 void setSharpenConvKernel(int kernel[3][3])
 {
 	/*
-	Generate instance of structure with a sharpen kernel and input size
-	
-	Arguments:
-	ConvLayer *convInput		
-	int size					Input size of convolution
-	Returns:
-	-
+	Generate instance of sharpen kernel
 	*/
 	
 	// Kernel set
@@ -144,13 +132,7 @@ void setSharpenConvKernel(int kernel[3][3])
 void setHyperParamConvKernel(int kernel[3][3])
 {
 	/*
-	Generate instance of structure with a custom kernel and input size
-	
-	Arguments:
-	ConvLayer *convInput		
-	int size					Input size of convolution
-	Returns:
-	-
+	Generate instance of custom kernel
 	*/
 
 	// Kernel set
@@ -189,19 +171,16 @@ double printarr(double x[], int size) {
 	printf("\n");
 	return 0;
 }
-void writeToFile(FILE* fpi, int** layer, int size){
-	for(int i=0;i<size;i++)
-	{
-		for(int j=0;j<size;j++)
-		{
-			fprintf(fpi,"%d\t",layer[i][j]);
-		}
-		fprintf(fpi,"\n");
-	}
-}
-
 double loss_function(int labels1[][output_labels], double ao1[][output_labels])
 {
+	/*
+	Cross entropy loss function
+	Arguments:
+	int labels1				2D array of labels  [input_size][output_labels]
+	double ao1				2D array of outputs [input_size][output_labels]
+	Returns:
+
+	*/
     double loss =0.0;
     for (size_t i = 0; i < input_size ; i++)
     {
