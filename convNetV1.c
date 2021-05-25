@@ -179,6 +179,7 @@ double loss_function(int labels1[][output_labels], double ao1[][output_labels])
 	int labels1				2D array of labels  [input_size][output_labels]
 	double ao1				2D array of outputs [input_size][output_labels]
 	Returns:
+	double loss				Loss function value
 
 	*/
     double loss =0.0;
@@ -437,7 +438,7 @@ int main(){
 		
 	// }
 	
-
+	// Defining all variables for the Neural Network
     double zh[input_size][hidden_nodes], ah[input_size][hidden_nodes];
 	double zo[input_size][output_labels], ao[input_size][output_labels];
 	double dcost_dzo[input_size][output_labels], dzo_dwo[input_size][hidden_nodes];
@@ -455,6 +456,7 @@ for (int epoch = 0; epoch < no_epoch; epoch++)
     {
 		#pragma acc data create(zh,ah,zo,ao,dcost_dzo,dcost_bo,dzo_dwo,dcost_wo,dzo_dah,dcost_dah,dah_dzh,dcost_bh,dzh_dwh,temp_mat,dcost_wh) copyin(x,labels[0:5766][0:7],wh,bh,wo,bo) copyout(ao,wh,bh,wo,bo)
 		{
+			// Forward Feed
 			#pragma acc parallel loop num_gangs(ngangs) collapse(2) present(zh,bh,ah)
 			for (size_t i = 0; i < input_size; i++)
     		{
@@ -502,13 +504,11 @@ for (int epoch = 0; epoch < no_epoch; epoch++)
         		for (size_t j = 0; j < output_labels; j++)
         		{
             		dcost_dzo[i][j] = ao[i][j]-labels[i][j];
-            		// dcost_dzo[i][j] = (dcost_dzo[i][j]<0.000001 && dcost_dzo[i][j]>0) ? 0.000001:dcost_dzo[i][j];
 					dcost_bo[i][j] = dcost_dzo[i][j];
         		}
         		for (size_t j = 0; j < hidden_nodes; j++)
         		{
             		dzo_dwo[i][j] = ah[i][j];
-					// dzo_dwo[i][j] = (dzo_dwo[i][j]<0.000001 && dzo_dwo[i][j]>0) ? 0.000001:dzo_dwo[i][j];
         		}   
     		}
 
@@ -522,7 +522,6 @@ for (int epoch = 0; epoch < no_epoch; epoch++)
             		{
                 		dcost_wo[i][j]+=dzo_dwo[k][i]*dcost_dzo[k][j];
             		}
-					// dcost_wo[i][j] = (dcost_wo[i][j]<0.000001 && dcost_wo[i][j]>0) ? 0.000001:dcost_wo[i][j];
         		}
     		}
 		
@@ -534,7 +533,6 @@ for (int epoch = 0; epoch < no_epoch; epoch++)
         		for (size_t j = 0; j < output_labels; j++)
         		{
             		dzo_dah[i][j] = wo[i][j];
-					// dzo_dah[i][j] = (dzo_dah[i][j]<0.000001 && dzo_dah[i][j]>0) ? 0.000001:dzo_dah[i][j];
         		}
     		}
 		
@@ -551,8 +549,6 @@ for (int epoch = 0; epoch < no_epoch; epoch++)
             		}
             		dah_dzh[i][j] = dSigmoid(zh[i][j]);
             		dcost_bh[i][j] = dcost_dah[i][j]*dah_dzh[i][j];
-					// dah_dzh[i][j] = (dah_dzh[i][j]<0.000001 && dah_dzh[i][j]>0) ? 0.000001:dah_dzh[i][j];
-					// dcost_bh[i][j] = (dcost_bh[i][j]<0.000001 && dcost_bh[i][j]>0) ? 0.000001:dcost_bh[i][j];
         		}
         
         		for (size_t j = 0; j < nfeatures; j++)
@@ -567,7 +563,6 @@ for (int epoch = 0; epoch < no_epoch; epoch++)
 				for (size_t j = 0; j < hidden_nodes; j++)
 				{
 					temp_mat[i][j] = dah_dzh[i][j]*dcost_dah[i][j];
-					// temp_mat[i][j] = (temp_mat[i][j]<0.000001 && temp_mat[i][j]>0) ? 0.000001:temp_mat[i][j];
 				}
 			}
 
@@ -580,14 +575,13 @@ for (int epoch = 0; epoch < no_epoch; epoch++)
             		dcost_wh[i][j] = 0.0;
             		for (size_t k = 0; k < input_size; k++)
             		{
-                		dcost_wh[i][j] += dzh_dwh[k][i]*temp_mat[k][j];// (dah_dzh[k][j]*dcost_dah[k][j]);//dzh_dwh[k][i]*
-						// dcost_wh[i][j] = (dcost_wh[i][j]<0.000001 && dcost_wh[i][j]>0) ? 0.000001:dcost_wh[i][j];
+                		dcost_wh[i][j] += dzh_dwh[k][i]*temp_mat[k][j];
             		}
         		}
     		}
 
 
-    		// Updating Weights for each layer
+    		// Updating Weights for the hidden nodes and output layer
 			#pragma acc parallel loop num_gangs(ngangs) collapse(2) present(wh,dcost_wh)
     		for (size_t i = 0; i < nfeatures; i++)
     		{
@@ -631,12 +625,9 @@ for (int epoch = 0; epoch < no_epoch; epoch++)
 
 
         double loss_val= 0.0;
-        // feedforward(x,wh,bh,wo,bo,zh,ah,zo,ao);
-        // backprpogation(x, labels, wh, bh, wo, bo, zh, ah, zo, ao, dcost_dzo, dzo_dwo,
-        // dcost_wo, dcost_bo, dzo_dah, dcost_dah, dah_dzh, dzh_dwh, dcost_wh, dcost_bh);
-        
 		double max_val=0.0;
-		double count=0.0, acc=0.0;;
+		double count=0.0, acc=0.0;
+		// Computing the accuracy and the loss function
 		for (size_t i = 0; i < input_size; i++)
 		{
 			for (size_t j = 0; j < output_labels; j++)
