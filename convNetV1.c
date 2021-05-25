@@ -244,7 +244,7 @@ int main(){
 
 
 			// 1st layer output
-			#pragma acc parallel loop collapse(2) num_gangs(ngangs) present(edge[0:3][0:3],image[0:image_size][0:image_size],i1[0:image_size][0:image_size]) 
+			#pragma acc parallel loop collapse(2) num_gangs(ngangs) independent present(edge[0:3][0:3],image[0:image_size][0:image_size],i1[0:image_size][0:image_size]) 
 			for(int i=0;i<image_size;i++)
 			{
 				for(int j=0;j<image_size;j++)
@@ -285,7 +285,7 @@ int main(){
 			}
 
 			// 3rd layer output
-			#pragma acc parallel loop collapse(2) num_gangs(ngangs) present(sharp[0:3][0:3],i2[0:conv_1_size][0:conv_1_size],i3[0:conv_1_size][0:conv_1_size]) 
+			#pragma acc parallel loop collapse(2) num_gangs(ngangs) independent present(sharp[0:3][0:3],i2[0:conv_1_size][0:conv_1_size],i3[0:conv_1_size][0:conv_1_size]) 
 			for(int i=0;i<conv_1_size;i++)
 			{
 				for(int j=0;j<conv_1_size;j++)
@@ -301,9 +301,9 @@ int main(){
 							sharp[1][1]*i2[i][j] +
 							sharp[1][2]*i2[i][j+1] +
 
-							edge[2][0]*image[i+1][j-1] +
-							edge[2][1]*image[i+1][j] +
-							edge[2][2]*image[i+1][j+1]
+							sharp[2][0]*i2[i+1][j-1] +
+							sharp[2][1]*i2[i+1][j] +
+							sharp[2][2]*i2[i+1][j+1]
 						);
 
 					}
@@ -326,7 +326,7 @@ int main(){
 			}
 			
 			// 5th layer output
-			#pragma acc parallel loop collapse(2) num_gangs(ngangs) present(manual[0:3][0:3],i4[0:conv_2_size][0:conv_2_size],i5[0:conv_2_size][0:conv_2_size]) 
+			#pragma acc parallel loop collapse(2) num_gangs(ngangs) independent present(manual[0:3][0:3],i4[0:conv_2_size][0:conv_2_size],i5[0:conv_2_size][0:conv_2_size]) 
 			for(int i=0;i<conv_2_size;i++)
 			{
 				for(int j=0;j<conv_2_size;j++)
@@ -342,9 +342,9 @@ int main(){
 							manual[1][1]*i4[i][j] +
 							manual[1][2]*i4[i][j+1] +
 
-							edge[2][0]*image[i+1][j-1] +
-							edge[2][1]*image[i+1][j] +
-							edge[2][2]*image[i+1][j+1]
+							manual[2][0]*i4[i+1][j-1] +
+							manual[2][1]*i4[i+1][j] +
+							manual[2][2]*i4[i+1][j+1]
 						);
 
 					}
